@@ -107,6 +107,10 @@ public:
 	virtual void set_sample_bus_solo(int p_bus, bool p_enable) override;
 	virtual void set_sample_bus_mute(int p_bus, bool p_enable) override;
 
+	virtual void set_sample_bus_effect_count(int p_bus, int p_count) override;
+	virtual void set_sample_bus_effect_enabled(int p_bus, int p_effect_idx, bool p_enabled) override;
+	virtual void sync_sample_bus_effects(int p_bus) override;
+
 	AudioDriverWeb() {}
 };
 

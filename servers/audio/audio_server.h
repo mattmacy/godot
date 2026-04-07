@@ -152,6 +152,11 @@ public:
 	virtual void set_sample_bus_solo(int p_bus, bool p_enable) {}
 	virtual void set_sample_bus_mute(int p_bus, bool p_enable) {}
 
+	// Bus effects for sample mode (Web Audio API mapping).
+	virtual void set_sample_bus_effect_count(int p_bus, int p_count) {}
+	virtual void set_sample_bus_effect_enabled(int p_bus, int p_effect_idx, bool p_enabled) {}
+	virtual void sync_sample_bus_effects(int p_bus) {}
+
 	AudioDriver() {}
 	virtual ~AudioDriver() {}
 };

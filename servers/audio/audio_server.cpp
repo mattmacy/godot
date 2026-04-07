@@ -1114,6 +1114,10 @@ void AudioServer::_update_bus_effects(int p_bus) {
 			buses.write[p_bus]->channels.write[i].effect_instances.write[j] = fx;
 		}
 	}
+	// Sync effects to the audio driver for sample mode (Web Audio API mapping).
+	if (AudioDriver::get_singleton()) {
+		AudioDriver::get_singleton()->sync_sample_bus_effects(p_bus);
+	}
 }
 
 void AudioServer::add_bus_effect(int p_bus, const Ref<AudioEffect> &p_effect, int p_at_pos) {
@@ -1197,6 +1201,10 @@ void AudioServer::set_bus_effect_enabled(int p_bus, int p_effect, bool p_enabled
 	MARK_EDITED
 
 	buses.write[p_bus]->effects.write[p_effect].enabled = p_enabled;
+
+	if (AudioDriver::get_singleton()) {
+		AudioDriver::get_singleton()->set_sample_bus_effect_enabled(p_bus, p_effect, p_enabled);
+	}
 }
 
 bool AudioServer::is_bus_effect_enabled(int p_bus, int p_effect) const {

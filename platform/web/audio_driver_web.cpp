@@ -36,6 +36,9 @@
 #include "core/math/math_funcs_binary.h"
 #include "core/object/object.h"
 #include "servers/audio/audio_stream.h"
+#include "servers/audio/effects/audio_effect_compressor.h"
+#include "servers/audio/effects/audio_effect_filter.h"
+#include "servers/audio/effects/audio_effect_reverb.h"
 
 #include <emscripten.h>
 
@@ -386,6 +389,47 @@ void AudioDriverWeb::set_sample_bus_solo(int p_bus, bool p_enable) {
 
 void AudioDriverWeb::set_sample_bus_mute(int p_bus, bool p_enable) {
 	godot_audio_sample_bus_set_mute(p_bus, p_enable);
+}
+
+void AudioDriverWeb::set_sample_bus_effect_count(int p_bus, int p_count) {
+	godot_audio_sample_bus_set_effect_count(p_bus, p_count);
+}
+
+void AudioDriverWeb::set_sample_bus_effect_enabled(int p_bus, int p_effect_idx, bool p_enabled) {
+	godot_audio_sample_bus_set_effect_enabled(p_bus, p_effect_idx, p_enabled);
+}
+
+void AudioDriverWeb::sync_sample_bus_effects(int p_bus) {
+	AudioServer *as = AudioServer::get_singleton();
+	int count = as->get_bus_effect_count(p_bus);
+	godot_audio_sample_bus_set_effect_count(p_bus, count);
+
+	for (int i = 0; i < count; i++) {
+		Ref<AudioEffect> effect = as->get_bus_effect(p_bus, i);
+		bool enabled = as->is_bus_effect_enabled(p_bus, i);
+
+		if (Object::cast_to<AudioEffectLowPassFilter>(*effect)) {
+			AudioEffectFilter *f = Object::cast_to<AudioEffectFilter>(*effect);
+			godot_audio_sample_bus_set_effect_lowpass(p_bus, i, f->get_cutoff(), f->get_resonance());
+		} else if (Object::cast_to<AudioEffectHighPassFilter>(*effect)) {
+			AudioEffectFilter *f = Object::cast_to<AudioEffectFilter>(*effect);
+			godot_audio_sample_bus_set_effect_highpass(p_bus, i, f->get_cutoff(), f->get_resonance());
+		} else if (Object::cast_to<AudioEffectCompressor>(*effect)) {
+			AudioEffectCompressor *c = Object::cast_to<AudioEffectCompressor>(*effect);
+			godot_audio_sample_bus_set_effect_compressor(p_bus, i,
+					c->get_threshold(), c->get_ratio(),
+					c->get_attack_us() / 1000.0f, c->get_release_ms(),
+					10.0f); // Web Audio API knee default
+		} else if (Object::cast_to<AudioEffectReverb>(*effect)) {
+			AudioEffectReverb *r = Object::cast_to<AudioEffectReverb>(*effect);
+			godot_audio_sample_bus_set_effect_reverb(p_bus, i,
+					r->get_room_size(), r->get_damping(),
+					r->get_wet(), r->get_dry());
+		}
+		// Unsupported effects are silently ignored — they pass audio through.
+
+		godot_audio_sample_bus_set_effect_enabled(p_bus, i, enabled);
+	}
 }
 
 #ifdef THREADS_ENABLED

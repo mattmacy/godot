@@ -67,6 +67,14 @@ extern void godot_audio_sample_bus_set_volume_db(int p_bus, float p_volume_db);
 extern void godot_audio_sample_bus_set_solo(int p_bus, bool p_enable);
 extern void godot_audio_sample_bus_set_mute(int p_bus, bool p_enable);
 
+// Bus effects (Sample mode Web Audio API mapping)
+extern void godot_audio_sample_bus_set_effect_count(int p_bus, int p_count);
+extern void godot_audio_sample_bus_set_effect_lowpass(int p_bus, int p_effect_idx, float p_cutoff_hz, float p_resonance);
+extern void godot_audio_sample_bus_set_effect_highpass(int p_bus, int p_effect_idx, float p_cutoff_hz, float p_resonance);
+extern void godot_audio_sample_bus_set_effect_compressor(int p_bus, int p_effect_idx, float p_threshold, float p_ratio, float p_attack_ms, float p_release_ms, float p_knee_db);
+extern void godot_audio_sample_bus_set_effect_reverb(int p_bus, int p_effect_idx, float p_room_size, float p_damping, float p_wet, float p_dry);
+extern void godot_audio_sample_bus_set_effect_enabled(int p_bus, int p_effect_idx, bool p_enabled);
+
 // Worklet
 typedef int32_t GodotAudioState[4];
 extern int godot_audio_worklet_create(int p_channels);
