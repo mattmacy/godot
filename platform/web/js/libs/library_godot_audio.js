@@ -1620,7 +1620,7 @@ const _GodotAudio = {
 	},
 
 	godot_audio_sample_register_stream__proxy: 'sync',
-	godot_audio_sample_register_stream__sig: 'viiiiiii',
+	godot_audio_sample_register_stream__sig: 'viiiiii',
 	/**
 	 * Registers a stream.
 	 * @param {number} streamObjectIdStrPtr StreamObjectId pointer
@@ -1693,7 +1693,7 @@ const _GodotAudio = {
 	},
 
 	godot_audio_sample_start__proxy: 'sync',
-	godot_audio_sample_start__sig: 'viiiifi',
+	godot_audio_sample_start__sig: 'viiiffi',
 	/**
 	 * Starts a sample.
 	 * @param {number} playbackObjectIdStrPtr Playback object id pointer
@@ -1787,7 +1787,7 @@ const _GodotAudio = {
 	},
 
 	godot_audio_sample_update_pitch_scale__proxy: 'sync',
-	godot_audio_sample_update_pitch_scale__sig: 'vii',
+	godot_audio_sample_update_pitch_scale__sig: 'vif',
 	/**
 	 * Updates the pitch scale of a sample.
 	 * @param {number} playbackObjectIdStrPtr Playback object id pointer
@@ -1803,7 +1803,7 @@ const _GodotAudio = {
 	},
 
 	godot_audio_sample_set_volumes_linear__proxy: 'sync',
-	godot_audio_sample_set_volumes_linear__sig: 'vii',
+	godot_audio_sample_set_volumes_linear__sig: 'viiiii',
 	/**
 	 * Sets the volumes linear of each mentioned bus for the sample.
 	 * @param {number} playbackObjectIdStrPtr Playback object id pointer
@@ -1893,7 +1893,7 @@ const _GodotAudio = {
 	},
 
 	godot_audio_sample_bus_set_volume_db__proxy: 'sync',
-	godot_audio_sample_bus_set_volume_db__sig: 'vii',
+	godot_audio_sample_bus_set_volume_db__sig: 'vif',
 	/**
 	 * Sets the volume db of a bus.
 	 * @param {number} bus Position of the bus to set the volume db
