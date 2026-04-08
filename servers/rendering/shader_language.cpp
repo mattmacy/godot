@@ -397,6 +397,7 @@ const ShaderLanguage::KeyWord ShaderLanguage::keyword_list[] = {
 	{ TK_HINT_SCREEN_TEXTURE, "hint_screen_texture", CF_UNSPECIFIED, {}, {} },
 	{ TK_HINT_NORMAL_ROUGHNESS_TEXTURE, "hint_normal_roughness_texture", CF_UNSPECIFIED, {}, {} },
 	{ TK_HINT_DEPTH_TEXTURE, "hint_depth_texture", CF_UNSPECIFIED, {}, {} },
+	{ TK_HINT_EMISSIVE_TEXTURE, "hint_emissive_texture", CF_UNSPECIFIED, {}, {} },
 
 	{ TK_HINT_BLIT_SOURCE0, "hint_blit_source0", CF_UNSPECIFIED, {}, {} },
 	{ TK_HINT_BLIT_SOURCE1, "hint_blit_source1", CF_UNSPECIFIED, {}, {} },
@@ -1246,6 +1247,9 @@ String ShaderLanguage::get_uniform_hint_name(ShaderNode::Uniform::Hint p_hint) {
 		} break;
 		case ShaderNode::Uniform::HINT_DEPTH_TEXTURE: {
 			result = "hint_depth_texture";
+		} break;
+		case ShaderNode::Uniform::HINT_EMISSIVE_TEXTURE: {
+			result = "hint_emissive_texture";
 		} break;
 		case ShaderNode::Uniform::HINT_BLIT_SOURCE0: {
 			result = "hint_blit_source0";
@@ -10080,6 +10084,15 @@ Error ShaderLanguage::_parse_shader(const HashMap<StringName, FunctionInfo> &p_f
 										return ERR_PARSE_ERROR;
 									}
 								} break;
+								case TK_HINT_EMISSIVE_TEXTURE: {
+									new_hint = ShaderNode::Uniform::HINT_EMISSIVE_TEXTURE;
+									--texture_uniforms;
+									--texture_binding;
+									if (shader_type_identifier != StringName() && String(shader_type_identifier) != "spatial") {
+										_set_error(vformat(RTR("'hint_emissive_texture' is not supported in '%s' shaders."), shader_type_identifier));
+										return ERR_PARSE_ERROR;
+									}
+								} break;
 								case TK_HINT_BLIT_SOURCE0: {
 									new_hint = ShaderNode::Uniform::HINT_BLIT_SOURCE0;
 									--texture_uniforms;
@@ -12159,6 +12172,7 @@ Error ShaderLanguage::complete(const String &p_code, const ShaderCompileInfo &p_
 						options.push_back("hint_screen_texture");
 						options.push_back("hint_normal_roughness_texture");
 						options.push_back("hint_depth_texture");
+						options.push_back("hint_emissive_texture");
 						options.push_back("hint_blit_source0");
 						options.push_back("hint_blit_source1");
 						options.push_back("hint_blit_source2");

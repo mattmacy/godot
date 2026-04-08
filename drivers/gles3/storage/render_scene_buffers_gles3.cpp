@@ -559,6 +559,63 @@ void RenderSceneBuffersGLES3::_clear_back_buffers() {
 	}
 }
 
+void RenderSceneBuffersGLES3::_clear_emissive_buffers() {
+	if (emissive3d_color != 0) {
+		GLES3::Utilities::get_singleton()->texture_free_data(emissive3d_color);
+		emissive3d_color = 0;
+	}
+
+	if (emissive_backbuffer != 0) {
+		GLES3::Utilities::get_singleton()->texture_free_data(emissive_backbuffer);
+		emissive_backbuffer = 0;
+	}
+}
+
+void RenderSceneBuffersGLES3::check_emissive_buffer() {
+	if (emissive3d_color != 0) {
+		return; // Already set up.
+	}
+
+	bool use_multiview = view_count > 1 && GLES3::Config::get_singleton()->multiview_supported;
+	GLenum texture_target = use_multiview ? GL_TEXTURE_2D_ARRAY : GL_TEXTURE_2D;
+
+	// Create emissive color texture — attached as GL_COLOR_ATTACHMENT1 to the render FBO.
+	glGenTextures(1, &emissive3d_color);
+	glBindTexture(texture_target, emissive3d_color);
+
+	if (use_multiview) {
+		glTexImage3D(texture_target, 0, color_internal_format, internal_size.x, internal_size.y, view_count, 0, color_format, color_type, nullptr);
+	} else {
+		glTexImage2D(texture_target, 0, color_internal_format, internal_size.x, internal_size.y, 0, color_format, color_type, nullptr);
+	}
+
+	glTexParameteri(texture_target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(texture_target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(texture_target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(texture_target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	GLES3::Utilities::get_singleton()->texture_allocated_data(emissive3d_color, internal_size.x * internal_size.y * view_count * color_format_size, "3D emissive texture");
+
+	// Create emissive backbuffer — blitted copy for hint_emissive_texture sampling.
+	glGenTextures(1, &emissive_backbuffer);
+	glBindTexture(texture_target, emissive_backbuffer);
+
+	if (use_multiview) {
+		glTexImage3D(texture_target, 0, color_internal_format, internal_size.x, internal_size.y, view_count, 0, color_format, color_type, nullptr);
+	} else {
+		glTexImage2D(texture_target, 0, color_internal_format, internal_size.x, internal_size.y, 0, color_format, color_type, nullptr);
+	}
+
+	glTexParameteri(texture_target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(texture_target, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(texture_target, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(texture_target, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	GLES3::Utilities::get_singleton()->texture_allocated_data(emissive_backbuffer, internal_size.x * internal_size.y * view_count * color_format_size, "3D emissive backbuffer");
+
+	glBindTexture(texture_target, 0);
+}
+
 void RenderSceneBuffersGLES3::set_apply_environment_effects_in_post(bool p_apply_in_post) {
 	apply_environment_effects_in_post = p_apply_in_post;
 }
@@ -633,6 +690,7 @@ void RenderSceneBuffersGLES3::free_render_buffer_data() {
 	_clear_msaa3d_buffers();
 	_clear_intermediate_buffers();
 	_clear_back_buffers();
+	_clear_emissive_buffers();
 	_clear_glow_buffers();
 }
 

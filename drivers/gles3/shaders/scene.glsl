@@ -1430,6 +1430,7 @@ uniform mediump vec4[9] lightmap_captures;
 #ifdef USE_MULTIVIEW
 uniform highp sampler2DArray depth_buffer; // texunit:-7
 uniform highp sampler2DArray color_buffer; // texunit:-6
+uniform highp sampler2DArray emissive_buffer; // texunit:-8
 vec3 multiview_uv(vec2 uv) {
 	return vec3(uv, ViewIndex);
 }
@@ -1439,6 +1440,7 @@ ivec3 multiview_uv(ivec2 uv) {
 #else
 uniform highp sampler2D depth_buffer; // texunit:-7
 uniform highp sampler2D color_buffer; // texunit:-6
+uniform highp sampler2D emissive_buffer; // texunit:-8
 vec2 multiview_uv(vec2 uv) {
 	return uv;
 }
@@ -1461,6 +1463,7 @@ layout(location = 3) out vec4 emission_output_buffer;
 #ifndef RENDER_MOTION_VECTORS
 // Normal color rendering.
 layout(location = 0) out vec4 frag_color;
+layout(location = 1) out vec4 emissive_output; // MRT: raw EMISSION for post-process (SSIL, heat distortion, bloom).
 #else
 layout(location = 0) out vec4 motion_vectors;
 #endif // !RENDER_MOTION_VECTORS
@@ -2561,6 +2564,7 @@ void main() {
 #ifdef BASE_PASS
 #ifdef MODE_UNSHADED
 	frag_color = vec4(albedo, alpha);
+	emissive_output = vec4(0.0);
 #else
 
 	diffuse_light *= albedo;
@@ -2569,6 +2573,9 @@ void main() {
 
 	frag_color = vec4(diffuse_light + specular_light, alpha);
 	frag_color.rgb += emission + ambient_light;
+
+	// MRT: write raw emission to separate attachment for post-process (SSIL, bloom, heat distortion).
+	emissive_output = vec4(emission, 1.0);
 #endif //!MODE_UNSHADED
 
 #ifndef FOG_DISABLED
@@ -2587,6 +2594,7 @@ void main() {
 
 #else // !BASE_PASS
 	frag_color = vec4(0.0, 0.0, 0.0, alpha);
+	emissive_output = vec4(0.0);
 #endif // !BASE_PASS
 
 /* ADDITIVE LIGHTING PASS */

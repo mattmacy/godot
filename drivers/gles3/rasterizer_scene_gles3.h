@@ -248,6 +248,7 @@ private:
 			FLAG_USES_NORMAL_TEXTURE = 8192,
 			FLAG_USES_DOUBLE_SIDED_SHADOWS = 16384,
 			FLAG_USES_STENCIL = 32768,
+			FLAG_USES_EMISSIVE_TEXTURE = 65536,
 		};
 
 		union {
@@ -625,6 +626,7 @@ private:
 		bool used_screen_texture = false;
 		bool used_normal_texture = false;
 		bool used_depth_texture = false;
+		bool used_emissive_texture = false;
 		bool used_opaque_stencil = false;
 
 		LightData *omni_lights = nullptr;

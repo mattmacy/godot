@@ -2986,6 +2986,7 @@ void SceneShaderData::set_code(const String &p_code) {
 	uses_screen_texture_mipmaps = false;
 	uses_depth_texture = false;
 	uses_normal_texture = false;
+	uses_emissive_texture = false;
 	uses_bent_normal_texture = false;
 	uses_time = false;
 	uses_vertex_time = false;
@@ -3143,6 +3144,7 @@ void SceneShaderData::set_code(const String &p_code) {
 	uses_screen_texture_mipmaps = gen_code.uses_screen_texture_mipmaps;
 	uses_depth_texture = gen_code.uses_depth_texture;
 	uses_normal_texture = gen_code.uses_normal_roughness_texture;
+	uses_emissive_texture = gen_code.uses_emissive_texture;
 	uses_vertex_time = gen_code.uses_vertex_time;
 	uses_fragment_time = gen_code.uses_fragment_time;
 
@@ -3213,7 +3215,7 @@ bool SceneShaderData::is_animated() const {
 }
 
 bool SceneShaderData::casts_shadows() const {
-	bool has_read_screen_alpha = uses_screen_texture || uses_depth_texture || uses_normal_texture;
+	bool has_read_screen_alpha = uses_screen_texture || uses_depth_texture || uses_normal_texture || uses_emissive_texture;
 	bool has_base_alpha = (uses_alpha && !uses_alpha_clip) || has_read_screen_alpha;
 	bool has_alpha = has_base_alpha || uses_blend_alpha;
 
@@ -3227,6 +3229,7 @@ RenderingServerTypes::ShaderNativeSourceCode SceneShaderData::get_native_source_
 SceneShaderData::SceneShaderData() {
 	valid = false;
 	uses_screen_texture = false;
+	uses_emissive_texture = false;
 }
 
 SceneShaderData::~SceneShaderData() {

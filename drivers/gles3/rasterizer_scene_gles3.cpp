@@ -216,7 +216,7 @@ void RasterizerSceneGLES3::_geometry_instance_dependency_deleted(const RID &p_de
 void RasterizerSceneGLES3::_geometry_instance_add_surface_with_material(GeometryInstanceGLES3 *ginstance, uint32_t p_surface, GLES3::SceneMaterialData *p_material, uint32_t p_material_id, uint32_t p_shader_id, RID p_mesh) {
 	GLES3::MeshStorage *mesh_storage = GLES3::MeshStorage::get_singleton();
 
-	bool has_read_screen_alpha = p_material->shader_data->uses_screen_texture || p_material->shader_data->uses_depth_texture || p_material->shader_data->uses_normal_texture;
+	bool has_read_screen_alpha = p_material->shader_data->uses_screen_texture || p_material->shader_data->uses_depth_texture || p_material->shader_data->uses_normal_texture || p_material->shader_data->uses_emissive_texture;
 	bool has_base_alpha = ((p_material->shader_data->uses_alpha && !p_material->shader_data->uses_alpha_clip) || has_read_screen_alpha);
 	bool has_blend_alpha = p_material->shader_data->uses_blend_alpha;
 	bool has_alpha = has_base_alpha || has_blend_alpha;
@@ -233,6 +233,10 @@ void RasterizerSceneGLES3::_geometry_instance_add_surface_with_material(Geometry
 
 	if (p_material->shader_data->uses_normal_texture) {
 		flags |= GeometryInstanceSurface::FLAG_USES_NORMAL_TEXTURE;
+	}
+
+	if (p_material->shader_data->uses_emissive_texture) {
+		flags |= GeometryInstanceSurface::FLAG_USES_EMISSIVE_TEXTURE;
 	}
 
 	if (ginstance->data->cast_double_sided_shadows) {
@@ -1271,6 +1275,7 @@ void RasterizerSceneGLES3::_fill_render_list(RenderListType p_render_list, const
 		scene_state.used_screen_texture = false;
 		scene_state.used_normal_texture = false;
 		scene_state.used_depth_texture = false;
+		scene_state.used_emissive_texture = false;
 		scene_state.used_opaque_stencil = false;
 	}
 
@@ -1464,6 +1469,9 @@ void RasterizerSceneGLES3::_fill_render_list(RenderListType p_render_list, const
 				}
 				if (surf->flags & GeometryInstanceSurface::FLAG_USES_DEPTH_TEXTURE) {
 					scene_state.used_depth_texture = true;
+				}
+				if (surf->flags & GeometryInstanceSurface::FLAG_USES_EMISSIVE_TEXTURE) {
+					scene_state.used_emissive_texture = true;
 				}
 				if ((surf->flags & GeometryInstanceSurface::FLAG_USES_STENCIL) && !force_alpha && (surf->flags & (GeometryInstanceSurface::FLAG_PASS_DEPTH | GeometryInstanceSurface::FLAG_PASS_OPAQUE))) {
 					scene_state.used_opaque_stencil = true;
@@ -2582,6 +2590,16 @@ void RasterizerSceneGLES3::render_scene(const Ref<RenderSceneBuffers> &p_render_
 	glBindFramebuffer(GL_FRAMEBUFFER, fbo);
 	glViewport(0, 0, rb->internal_size.x, rb->internal_size.y);
 
+	// Attach emissive texture as GL_COLOR_ATTACHMENT1 for MRT.
+	// This captures raw EMISSION separately for post-process shaders (SSIL, heat distortion, bloom).
+	if (!is_reflection_probe) {
+		rb->check_emissive_buffer();
+		GLuint emissive_tex = rb->get_emissive_color();
+		if (emissive_tex != 0) {
+			glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, emissive_tex, 0);
+		}
+	}
+
 	// If SSAO is enabled, we definitely need the depth buffer.
 	if (ssao_enabled) {
 		scene_state.used_depth_texture = true;
@@ -2649,9 +2667,16 @@ void RasterizerSceneGLES3::render_scene(const Ref<RenderSceneBuffers> &p_render_
 	scene_state.enable_gl_depth_draw(true);
 	scene_state.set_gl_depth_func(GL_GEQUAL);
 
+	// Enable MRT: write to both color (attachment 0) and emissive (attachment 1).
 	{
-		GLuint db = GL_COLOR_ATTACHMENT0;
-		glDrawBuffers(1, &db);
+		bool has_emissive_mrt = !is_reflection_probe && rb->get_emissive_color() != 0;
+		if (has_emissive_mrt) {
+			GLuint db[2] = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1 };
+			glDrawBuffers(2, db);
+		} else {
+			GLuint db = GL_COLOR_ATTACHMENT0;
+			glDrawBuffers(1, &db);
+		}
 	}
 
 	scene_state.enable_gl_stencil_test(false);
@@ -2668,6 +2693,11 @@ void RasterizerSceneGLES3::render_scene(const Ref<RenderSceneBuffers> &p_render_
 	if (!keep_color && (!draw_canvas || fbo != rt->fbo)) {
 		clear_color.a = render_data.transparent_bg ? 0.0f : 1.0f;
 		glClearBufferfv(GL_COLOR, 0, clear_color.components);
+	}
+	// Clear emissive buffer to black.
+	if (!is_reflection_probe && rb->get_emissive_color() != 0) {
+		const float emissive_clear[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
+		glClearBufferfv(GL_COLOR, 1, emissive_clear);
 	}
 	if ((keep_color || draw_canvas) && fbo != rt->fbo) {
 		// Need to copy our current contents to our intermediate/MSAA buffer
@@ -2745,6 +2775,13 @@ void RasterizerSceneGLES3::render_scene(const Ref<RenderSceneBuffers> &p_render_
 	scene_state.enable_gl_depth_draw(false);
 	scene_state.enable_gl_stencil_test(false);
 
+	// After opaque pass, revert to single draw buffer.
+	// Sky and transparent passes don't write to the emissive MRT.
+	{
+		GLuint db = GL_COLOR_ATTACHMENT0;
+		glDrawBuffers(1, &db);
+	}
+
 	if (draw_sky || draw_sky_fog_only) {
 		RENDER_TIMESTAMP("Render Sky");
 
@@ -2759,7 +2796,7 @@ void RasterizerSceneGLES3::render_scene(const Ref<RenderSceneBuffers> &p_render_
 		_draw_sky(render_data.environment, projection, transform, sky_energy_multiplier, render_data.luminance_multiplier, p_camera_data->view_count > 1, flip_y, apply_environment_effects_in_post);
 	}
 
-	if (scene_state.used_screen_texture || scene_state.used_depth_texture) {
+	if (scene_state.used_screen_texture || scene_state.used_depth_texture || scene_state.used_emissive_texture) {
 		rb->check_backbuffer(scene_state.used_screen_texture, scene_state.used_depth_texture);
 		Size2i size = rb->get_internal_size();
 		GLuint backbuffer_fbo = rb->get_backbuffer_fbo();
@@ -2783,6 +2820,31 @@ void RasterizerSceneGLES3::render_scene(const Ref<RenderSceneBuffers> &p_render_
 						GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT, GL_NEAREST);
 				glActiveTexture(GL_TEXTURE0 + config->max_texture_image_units - 7);
 				glBindTexture(GL_TEXTURE_2D, backbuffer_depth);
+			}
+		}
+
+		// Blit emissive MRT (attachment 1) to emissive backbuffer for hint_emissive_texture sampling.
+		if (scene_state.used_emissive_texture) {
+			GLuint emissive_bb = rb->get_emissive_backbuffer();
+			if (emissive_bb != 0) {
+				// Create a temporary FBO to blit emissive into the emissive backbuffer texture.
+				GLuint emissive_blit_fbo = 0;
+				glGenFramebuffers(1, &emissive_blit_fbo);
+
+				glBindFramebuffer(GL_READ_FRAMEBUFFER, fbo);
+				glReadBuffer(GL_COLOR_ATTACHMENT1);
+
+				glBindFramebuffer(GL_DRAW_FRAMEBUFFER, emissive_blit_fbo);
+				glFramebufferTexture2D(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, emissive_bb, 0);
+
+				glBlitFramebuffer(0, 0, size.x, size.y,
+						0, 0, size.x, size.y,
+						GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+				glActiveTexture(GL_TEXTURE0 + config->max_texture_image_units - 8);
+				glBindTexture(GL_TEXTURE_2D, emissive_bb);
+
+				glDeleteFramebuffers(1, &emissive_blit_fbo);
 			}
 		}
 

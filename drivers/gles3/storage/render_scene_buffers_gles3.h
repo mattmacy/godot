@@ -82,6 +82,11 @@ public:
 
 	FBDEF backbuffer3d; // our back buffer
 
+	// Emissive render target for MRT — captures raw EMISSION separately from composited color.
+	// Enables hint_emissive_texture for post-process shaders (SSIL, heat distortion, emissive bloom).
+	GLuint emissive3d_color = 0; // Emissive texture attached as GL_COLOR_ATTACHMENT1 to internal FBO.
+	GLuint emissive_backbuffer = 0; // Blitted copy for post-process sampling via hint_emissive_texture.
+
 	// Buffers for our glow implementation
 	struct GLOW {
 		GLES3::Glow::Level levels[4];
@@ -92,6 +97,7 @@ private:
 	void _clear_msaa3d_buffers();
 	void _clear_intermediate_buffers();
 	void _clear_back_buffers();
+	void _clear_emissive_buffers();
 	void _clear_glow_buffers();
 
 	void _rt_attach_textures(GLuint p_color, GLuint p_depth, GLsizei p_samples, uint32_t p_view_count, bool p_depth_has_stencil);
@@ -113,6 +119,7 @@ public:
 	void free_render_buffer_data();
 
 	void check_backbuffer(bool p_need_color, bool p_need_depth); // Check if we need to initialize our backbuffer.
+	void check_emissive_buffer(); // Check if we need to initialize the emissive MRT and backbuffer.
 	void check_glow_buffers(); // Check if we need to initialize our glow buffers.
 
 	GLuint get_render_fbo();
@@ -147,6 +154,8 @@ public:
 	GLuint get_backbuffer_fbo() const { return backbuffer3d.fbo; }
 	GLuint get_backbuffer() const { return backbuffer3d.color; }
 	GLuint get_backbuffer_depth() const { return backbuffer3d.depth; }
+	GLuint get_emissive_color() const { return emissive3d_color; }
+	GLuint get_emissive_backbuffer() const { return emissive_backbuffer; }
 
 	const GLES3::Glow::Level *get_glow_buffers() const { return &glow.levels[0]; }
 
